@@ -1,734 +1,1060 @@
-<!DOCTYPE html>
-<html lang="en" data-view="landing">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Progression — Powerlifting &amp; Bodybuilding</title>
-<meta name="description" content="Periodized powerlifting blocks and balanced bodybuilding splits. One app, two disciplines." />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Figtree:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css" />
-</head>
-<body>
+const STORAGE_KEY = "bodybuilding-programme-v1";
+const STORAGE_SCHEMA_VERSION = 1;
 
-<!-- ===================== LANDING ===================== -->
-<div class="view view--landing landing" id="landingView">
-  <div class="brand" aria-hidden="true">
-    <svg viewBox="0 0 32 32" fill="none">
-      <rect x="1" y="13" width="4" height="6" rx="1" fill="#c44536"/>
-      <rect x="27" y="13" width="4" height="6" rx="1" fill="#c44536"/>
-      <rect x="5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
-      <rect x="23.5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
-      <rect x="8.5" y="14.5" width="15" height="3" fill="#f4f1ec"/>
-    </svg>
-    <b>PROGRESSION<span>.</span></b>
-  </div>
+/* -------------------------------------------------------------------------
+ * Data
+ *
+ * Every category carries a balance value. Push work is positive, pull work
+ * negative, neutral work zero. A finished session should sum to 0.
+ * ---------------------------------------------------------------------- */
 
-  <main class="choose">
+const CATEGORIES = {
+  chest: { label: "Chest", value: 1, exercises: ["Bench Press", "Incline Bench", "Chest Fly", "Cable Crossover"] },
+  back: { label: "Back", value: -1, exercises: ["Lat Pulldown", "Seated Row", "Deadlift", "Pull Up"] },
+  triceps: { label: "Triceps", value: 0.3, exercises: ["Tricep Pushdown", "Skull Crushers", "Overhead Extension"] },
+  biceps: { label: "Biceps", value: -0.3, exercises: ["Bicep Curl", "Hammer Curl", "Cable Curl"] },
+  shoulders: { label: "Shoulders", value: 0, exercises: ["Lateral Raise", "Overhead Press", "Front Raise"] },
+  traps: { label: "Traps", value: 0, exercises: ["Shrugs"] },
+  quads: { label: "Quads", value: 0.5, exercises: ["Squat", "Leg Press", "Leg Extension"] },
+  hamstrings: { label: "Hamstrings", value: -0.5, exercises: ["Romanian Deadlift", "Leg Curl"] },
+  core: { label: "Core", value: 0, exercises: ["Plank", "Crunches"] },
+};
 
-    <button type="button" class="half half--power" data-goto="powerlifting" aria-label="Powerlifting — periodized 10-week blocks for bench, squat and deadlift">
-      <!-- barbell: long span, loaded sleeves -->
-      <svg class="ico" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M3 27v10M61 27v10"/>
-        <rect x="8" y="20" width="6" height="24" rx="1.5"/>
-        <rect x="16" y="25" width="4" height="14" rx="1.5"/>
-        <rect x="44" y="25" width="4" height="14" rx="1.5"/>
-        <rect x="50" y="20" width="6" height="24" rx="1.5"/>
-        <path d="M20 32h24"/>
-      </svg>
-      <span class="kick">// Strength</span>
-      <h2>Power<br/>lifting</h2>
-      <p class="sub">Periodized 10-week blocks for bench, squat and deadlift. Log every set and watch the working weight climb.</p>
-      <span class="go">Enter
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+const DAY_TYPES = {
+  upperFull: {
+    label: "Upper (Full)",
+    required: ["chest", "back", "shoulders", "triceps", "biceps"],
+    optional: ["traps"],
+  },
+  upperChestBack: {
+    label: "Upper (Chest/Back)",
+    required: ["chest", "back", "shoulders"],
+    optional: ["traps"],
+  },
+  upperArms: {
+    label: "Upper (Arms)",
+    required: ["triceps", "biceps", "shoulders"],
+    optional: ["traps"],
+  },
+  lower: {
+    label: "Lower",
+    required: ["quads", "hamstrings", "core"],
+    optional: [],
+  },
+};
+
+const SPLITS = {
+  upperLower: {
+    label: "Upper / Lower",
+    blurb: "Alternates upper-body and lower-body days. The most forgiving way to hit everything twice a week.",
+    daysLabel: "3 to 5 days",
+    recommendedFor: [3, 4],
+    built: true,
+    pattern(days) {
+      if (days <= 2) return ["upperFull", "lower"];
+      const block = ["upperChestBack", "upperArms", "lower"];
+      return Array.from({ length: days }, (_, i) => block[i % block.length]);
+    },
+  },
+  ppl: {
+    label: "Push / Pull / Legs",
+    blurb: "Splits the week by movement pattern. Highest frequency option, best when you can train most days.",
+    daysLabel: "5 to 7 days",
+    recommendedFor: [5, 6, 7],
+    built: false,
+  },
+  fullBody: {
+    label: "Full Body",
+    blurb: "Every session covers the whole body. Efficient when training time is limited to a couple of days.",
+    daysLabel: "2 days",
+    recommendedFor: [2],
+    built: false,
+  },
+};
+
+const LENGTH_BASE = { 30: 4, 45: 5, 60: 6, 90: 8 };
+const EXPERIENCE_MOD = { beginner: -1, intermediate: 0, advanced: 1 };
+const EXPERIENCE_LABEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
+
+// Both of these steer the recommendation engine only. Neither ever restricts
+// what the user can add — the builder always allows more.
+//
+// Suggestion length: the engine stops suggesting once a session reaches this.
+const SUGGEST_MAX_EXERCISES = 8;
+
+// Suggestion spread: once a muscle group holds this many exercises the engine
+// stops suggesting it, but it stays fully selectable in the picker.
+const SUGGEST_MAX_PER_GROUP = 2;
+
+/* -------------------------------------------------------------------------
+ * State
+ * ---------------------------------------------------------------------- */
+
+const state = {
+  profile: null, // { daysPerWeek, experience, sessionLength }
+  split: null, // key of SPLITS
+  draftSplit: null, // selection on the split screen, before Build programme
+  sessions: {}, // work in progress: { [dayIndex]: [{ name, category }] }
+  declined: {}, // suggestions passed over per day: { [dayIndex]: [name] }
+  programme: null, // the committed weekly programme (see saveProgramme)
+  activeDay: null,
+};
+
+function saveState() {
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      profile: state.profile,
+      split: state.split,
+      sessions: state.sessions,
+      declined: state.declined,
+      programme: state.programme,
+    })
+  );
+}
+
+function loadState() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return;
+  try {
+    const parsed = JSON.parse(saved);
+    if (parsed.schemaVersion !== STORAGE_SCHEMA_VERSION) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    state.profile = parsed.profile || null;
+    state.split = parsed.split || null;
+    state.sessions = parsed.sessions || {};
+    state.declined = parsed.declined || {};
+    state.programme = parsed.programme || null;
+  } catch (error) {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Programme shape
+ * ---------------------------------------------------------------------- */
+
+function dayPlan() {
+  if (!state.profile || !state.split) return [];
+  const split = SPLITS[state.split];
+  if (!split.built) return [];
+  return split.pattern(state.profile.daysPerWeek);
+}
+
+function categoryPool(dayType) {
+  const day = DAY_TYPES[dayType];
+  return [...day.required, ...day.optional];
+}
+
+// Exercise count for a session: session length sets the base and experience
+// nudges it. The result is clamped to the suggestion length and to what the
+// pools supply under the per-group spread, then trimmed to the nearest count that
+// can still finish on zero — a slightly shorter session beats one that is
+// unbalanced by construction.
+function targetCount(dayType) {
+  const day = DAY_TYPES[dayType];
+  const solver = solverFor(dayType);
+  const base = LENGTH_BASE[state.profile.sessionLength] + EXPERIENCE_MOD[state.profile.experience];
+  const min = day.required.length;
+  const max = Math.min(solver.totalCapacity, SUGGEST_MAX_EXERCISES);
+  const nominal = Math.min(Math.max(base, min), max);
+
+  for (let count = nominal; count >= min; count -= 1) {
+    if (solver.bestFromEmpty(count) === 0) return count;
+  }
+  return nominal;
+}
+
+function chosenFor(dayIndex) {
+  return state.sessions[String(dayIndex)] || [];
+}
+
+function declinedFor(dayIndex) {
+  return state.declined[String(dayIndex)] || [];
+}
+
+/* -------------------------------------------------------------------------
+ * The weekly programme
+ *
+ * `state.sessions` is the working draft, one entry per day of the plan.
+ * `state.programme` is the committed week — what the user saved.
+ * ---------------------------------------------------------------------- */
+
+// A day counts as built once its required muscle groups are covered and it has
+// reached its target length.
+function dayIsBuilt(dayType, dayIndex) {
+  return analyseSession(dayType, chosenFor(dayIndex), declinedFor(dayIndex)).complete;
+}
+
+function programmeComplete() {
+  const plan = dayPlan();
+  return plan.length > 0 && plan.every((dayType, index) => dayIsBuilt(dayType, index));
+}
+
+// Identity of the current draft, used to spot edits made after a save.
+function draftSignature() {
+  return JSON.stringify(
+    dayPlan().map((dayType, index) => [dayType, chosenFor(index).map((item) => item.name)])
+  );
+}
+
+function programmeIsStale() {
+  return Boolean(state.programme) && state.programme.signature !== draftSignature();
+}
+
+function buildProgramme() {
+  return {
+    savedAt: new Date().toISOString(),
+    signature: draftSignature(),
+    split: state.split,
+    splitLabel: SPLITS[state.split].label,
+    profile: { ...state.profile },
+    days: dayPlan().map((dayType, index) => ({
+      day: index + 1,
+      type: dayType,
+      label: DAY_TYPES[dayType].label,
+      exercises: chosenFor(index).map((item) => ({
+        name: item.name,
+        category: item.category,
+        group: CATEGORIES[item.category].label,
+      })),
+    })),
+  };
+}
+
+function saveProgramme() {
+  state.programme = buildProgramme();
+  saveState();
+}
+
+/* -------------------------------------------------------------------------
+ * Balance engine
+ *
+ * Given what is already picked, work out which categories can still lead to
+ * a complete session: every required category covered, the exercise count
+ * met, and the balance as close to zero as the pools allow.
+ *
+ * Values are held in tenths so the search runs on integers.
+ * ---------------------------------------------------------------------- */
+
+function popcount(mask) {
+  let count = 0;
+  let value = mask;
+  while (value) {
+    value &= value - 1;
+    count += 1;
+  }
+  return count;
+}
+
+// One solver per day type, built once and reused. `best` returns the smallest
+// achievable |balance| (in tenths) for a completed session, or Infinity when
+// the remaining slots cannot cover what is still required.
+const solverCache = new Map();
+
+function solverFor(dayType) {
+  if (solverCache.has(dayType)) return solverCache.get(dayType);
+
+  const day = DAY_TYPES[dayType];
+  const pool = categoryPool(dayType);
+  const values = pool.map((key) => Math.round(CATEGORIES[key].value * 10));
+  // The per-group spread is baked into capacity, so the engine never *plans* a
+  // session leaning on three or more exercises from one group. The user is free
+  // to add them by hand; this only shapes what gets suggested.
+  const capacity = pool.map((key) => Math.min(CATEGORIES[key].exercises.length, SUGGEST_MAX_PER_GROUP));
+  const requiredMask = day.required.reduce((mask, key) => mask | (1 << pool.indexOf(key)), 0);
+  const totalCapacity = capacity.reduce((sum, count) => sum + count, 0);
+  const memo = new Map();
+
+  function best(slots, runningBalance, uncovered, capsLeft) {
+    if (popcount(uncovered) > slots) return Infinity;
+    if (slots === 0) return uncovered === 0 ? Math.abs(runningBalance) : Infinity;
+    const key = `${slots}|${runningBalance}|${uncovered}|${capsLeft.join(",")}`;
+    if (memo.has(key)) return memo.get(key);
+    let result = Infinity;
+    for (let i = 0; i < pool.length; i += 1) {
+      if (capsLeft[i] <= 0) continue;
+      const nextCaps = capsLeft.slice();
+      nextCaps[i] -= 1;
+      const candidate = best(slots - 1, runningBalance + values[i], uncovered & ~(1 << i), nextCaps);
+      if (candidate < result) result = candidate;
+      if (result === 0) break; // cannot beat a perfect balance
+    }
+    memo.set(key, result);
+    return result;
+  }
+
+  const solver = {
+    pool,
+    values,
+    capacity,
+    requiredMask,
+    totalCapacity,
+    best,
+    bestFromEmpty: (count) => best(count, 0, requiredMask, capacity.slice()),
+  };
+  solverCache.set(dayType, solver);
+  return solver;
+}
+
+function analyseSession(dayType, chosen, declined = []) {
+  const day = DAY_TYPES[dayType];
+  const { pool, values, capacity, requiredMask, best } = solverFor(dayType);
+  const target = targetCount(dayType);
+
+  let balance = 0;
+  let coveredMask = 0;
+  const used = pool.map(() => 0);
+  chosen.forEach((item) => {
+    const index = pool.indexOf(item.category);
+    if (index < 0) return;
+    balance += values[index];
+    coveredMask |= 1 << index;
+    used[index] += 1;
+  });
+
+  const slotsLeft = Math.max(0, target - chosen.length);
+  const capacityLeft = capacity.map((total, index) => total - used[index]);
+  const uncoveredMask = requiredMask & ~coveredMask;
+
+  const bestReachable = best(slotsLeft, balance, uncoveredMask, capacityLeft);
+
+  // Pick the single exercise to recommend. Candidates are ranked by, in order:
+  //   1. keeps a balanced, fully covered session reachable
+  //   2. contributes to the balance — neutral (zero-value) groups rank last
+  //   3. fills a required category that is still missing
+  //   4. least represented — a group with nothing yet beats one already used
+  //   5. weight — the heavier antagonist pairs lead
+  //   6. leaves the running balance closest to zero
+  // Ties fall back to pool order so the suggestion is stable between renders.
+  //
+  // Step 2 keeps Shrugs, Plank and the like out of the running until the
+  // groups that actually move the balance are covered and level. They only
+  // surface earlier when step 1 forces it — that is, when the balance can no
+  // longer reach zero any other way.
+  //
+  // Step 5 is why a Chest/Back day opens on Bench Press rather than an incline
+  // variation: step 1 already guarantees the session finishes level, so the
+  // closest-to-zero rule alone would order the openers arbitrarily.
+  //
+  // Groups that have had their share drop out of the running here — but only
+  // out of the suggestions, never out of the picker.
+  const taken = new Set(chosen.map((item) => item.name));
+  const passedOver = new Set(declined);
+
+  // Suggestions the user passed over are not offered again, so the next tip
+  // always reflects the selection actually made. If a group has nothing but
+  // passed-over exercises left, it falls back to offering them rather than
+  // leaving the user without a recommendation.
+  function optionsFor(categoryKey) {
+    const free = CATEGORIES[categoryKey].exercises.filter((name) => !taken.has(name));
+    const fresh = free.filter((name) => !passedOver.has(name));
+    return fresh.length ? fresh : free;
+  }
+
+  let recommendation = null;
+
+  if (slotsLeft > 0) {
+    for (let i = 0; i < pool.length; i += 1) {
+      if (capacityLeft[i] <= 0) continue;
+      const options = optionsFor(pool[i]);
+      if (!options.length) continue;
+
+      const nextCaps = capacityLeft.slice();
+      nextCaps[i] -= 1;
+      const reachable = best(slotsLeft - 1, balance + values[i], uncoveredMask & ~(1 << i), nextCaps);
+
+      const candidate = {
+        name: options[0],
+        category: pool[i],
+        keepsSessionReachable: reachable === bestReachable,
+        movesBalance: values[i] !== 0,
+        fillsRequired: Boolean(uncoveredMask & (1 << i)),
+        timesUsed: used[i],
+        weight: Math.abs(values[i]),
+        distanceFromZero: Math.abs(balance + values[i]),
+        order: i,
+      };
+
+      if (!recommendation || outranks(candidate, recommendation)) recommendation = candidate;
+    }
+  }
+
+  // What is physically left to add, ignoring the suggestion caps entirely —
+  // the picker offers everything the day has not already used.
+  const remainingByGroup = {};
+  pool.forEach((key) => {
+    remainingByGroup[key] = CATEGORIES[key].exercises.filter((name) => !taken.has(name)).length;
+  });
+
+  return {
+    target,
+    slotsLeft,
+    overTarget: Math.max(0, chosen.length - target),
+    complete: chosen.length >= target && uncoveredMask === 0,
+    uncovered: day.required.filter((key) => uncoveredMask & (1 << pool.indexOf(key))),
+    // Groups the engine will no longer suggest. They stay fully selectable.
+    restedCategories: pool.filter((key, i) => used[i] >= capacity[i]),
+    remainingByGroup,
+    anythingLeft: Object.values(remainingByGroup).some((n) => n > 0),
+    recommendation: recommendation && { name: recommendation.name, category: recommendation.category },
+  };
+}
+
+function outranks(a, b) {
+  if (a.keepsSessionReachable !== b.keepsSessionReachable) return a.keepsSessionReachable;
+  if (a.movesBalance !== b.movesBalance) return a.movesBalance;
+  if (a.fillsRequired !== b.fillsRequired) return a.fillsRequired;
+  if (a.timesUsed !== b.timesUsed) return a.timesUsed < b.timesUsed;
+  if (a.weight !== b.weight) return a.weight > b.weight;
+  if (a.distanceFromZero !== b.distanceFromZero) return a.distanceFromZero < b.distanceFromZero;
+  return a.order < b.order;
+}
+
+/* -------------------------------------------------------------------------
+ * Formatting helpers
+ *
+ * Balance values are internal. Nothing below ever renders them — the user
+ * sees exercise names, muscle groups and a "Recommended" label only.
+ * ---------------------------------------------------------------------- */
+
+function listCategories(keys) {
+  return keys.map((key) => CATEGORIES[key].label).join(", ");
+}
+
+/* -------------------------------------------------------------------------
+ * Screens
+ * ---------------------------------------------------------------------- */
+
+const screens = {
+  onboarding: document.getElementById("onboardingScreen"),
+  split: document.getElementById("splitScreen"),
+  programme: document.getElementById("programmeScreen"),
+  builder: document.getElementById("builderScreen"),
+  summary: document.getElementById("summaryScreen"),
+};
+
+function showScreen(name) {
+  Object.entries(screens).forEach(([key, element]) => {
+    element.classList.toggle("active", key === name);
+  });
+  window.scrollTo({ top: 0 });
+}
+
+/* --- Onboarding --- */
+
+const daysInput = document.getElementById("daysInput");
+const experienceInput = document.getElementById("experienceInput");
+const lengthInput = document.getElementById("lengthInput");
+const onboardingForm = document.getElementById("onboardingForm");
+const onboardingError = document.getElementById("onboardingError");
+
+function fillDayOptions() {
+  daysInput.innerHTML = "";
+  for (let days = 2; days <= 7; days += 1) {
+    const option = document.createElement("option");
+    option.value = String(days);
+    option.textContent = `${days} days per week`;
+    if (days === 4) option.selected = true;
+    daysInput.append(option);
+  }
+}
+
+onboardingForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const daysPerWeek = Number(daysInput.value);
+  const experience = experienceInput.value;
+  const sessionLength = Number(lengthInput.value);
+
+  if (!daysPerWeek || EXPERIENCE_MOD[experience] === undefined || !LENGTH_BASE[sessionLength]) {
+    onboardingError.textContent = "Please complete every field.";
+    return;
+  }
+
+  onboardingError.textContent = "";
+
+  const changed =
+    !state.profile ||
+    state.profile.daysPerWeek !== daysPerWeek ||
+    state.profile.experience !== experience ||
+    state.profile.sessionLength !== sessionLength;
+
+  state.profile = { daysPerWeek, experience, sessionLength };
+  if (changed) {
+    state.sessions = {};
+    state.declined = {};
+    state.programme = null;
+  }
+
+  state.draftSplit = state.split || recommendedSplit();
+  saveState();
+  renderSplitScreen();
+  showScreen("split");
+});
+
+/* --- Split selection --- */
+
+const splitGrid = document.getElementById("splitGrid");
+const splitSummary = document.getElementById("splitSummary");
+const splitContinue = document.getElementById("splitContinue");
+
+function recommendedSplit() {
+  const days = state.profile.daysPerWeek;
+  const match = Object.keys(SPLITS).find((key) => SPLITS[key].recommendedFor.includes(days));
+  return match || "upperLower";
+}
+
+function renderSplitScreen() {
+  const { daysPerWeek, experience, sessionLength } = state.profile;
+  splitSummary.textContent = `${daysPerWeek} days per week · ${EXPERIENCE_LABEL[experience]} · ${sessionLength} minute sessions`;
+
+  const recommended = recommendedSplit();
+  splitGrid.innerHTML = "";
+
+  Object.entries(SPLITS).forEach(([key, split]) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "split-card";
+    card.dataset.split = key;
+    card.setAttribute("aria-pressed", String(state.draftSplit === key));
+    if (state.draftSplit === key) card.classList.add("active");
+
+    const tags = [];
+    if (key === recommended) tags.push('<span class="split-tag split-tag--recommended">Recommended</span>');
+    else if (!split.built) tags.push('<span class="split-tag split-tag--soon">Coming soon</span>');
+
+    card.innerHTML = `
+      ${tags.join("")}
+      <strong>${split.label}</strong>
+      <span class="split-days">${split.daysLabel}</span>
+      <p>${split.blurb}</p>
+    `;
+
+    card.addEventListener("click", () => {
+      state.draftSplit = key;
+      renderSplitScreen();
+    });
+
+    splitGrid.append(card);
+  });
+
+  splitContinue.disabled = !state.draftSplit;
+}
+
+splitContinue.addEventListener("click", () => {
+  if (!state.draftSplit) return;
+  if (state.split !== state.draftSplit) {
+    state.sessions = {};
+    state.declined = {};
+    state.programme = null;
+  }
+  state.split = state.draftSplit;
+  saveState();
+  renderProgramme();
+  showScreen("programme");
+});
+
+document.getElementById("splitBackButton").addEventListener("click", () => {
+  showScreen("onboarding");
+});
+
+/* --- Programme overview --- */
+
+const dayList = document.getElementById("dayList");
+const programmeSummary = document.getElementById("programmeSummary");
+const programmeSplitName = document.getElementById("programmeSplitName");
+const programmeStatus = document.getElementById("programmeStatus");
+const splitPlaceholder = document.getElementById("splitPlaceholder");
+const programmeActions = document.getElementById("programmeActions");
+const programmeActionsNote = document.getElementById("programmeActionsNote");
+const reviewButton = document.getElementById("reviewButton");
+const programmeFlash = document.getElementById("programmeFlash");
+
+// A one-shot confirmation, shown on whichever screen the user lands on.
+let flashMessage = "";
+
+function setFlash(message) {
+  flashMessage = message;
+}
+
+function showFlash(element, message) {
+  element.textContent = message || "";
+  element.classList.toggle("hidden", !message);
+}
+
+function renderProgramme() {
+  const split = SPLITS[state.split];
+  const { daysPerWeek, experience, sessionLength } = state.profile;
+  programmeSplitName.textContent = split.label;
+  programmeSummary.textContent = `${daysPerWeek} days per week · ${EXPERIENCE_LABEL[experience]} · ${sessionLength} minute sessions`;
+
+  showFlash(programmeFlash, "");
+
+  dayList.innerHTML = "";
+
+  if (!split.built) {
+    dayList.classList.add("hidden");
+    splitPlaceholder.classList.remove("hidden");
+    programmeActions.classList.add("hidden");
+    programmeStatus.textContent = "Not available yet";
+    programmeStatus.className = "status-pill is-warn";
+    return;
+  }
+
+  dayList.classList.remove("hidden");
+  splitPlaceholder.classList.add("hidden");
+
+  const plan = dayPlan();
+  let completeDays = 0;
+
+  plan.forEach((dayType, index) => {
+    const chosen = chosenFor(index);
+    const analysis = analyseSession(dayType, chosen, declinedFor(index));
+    if (analysis.complete) completeDays += 1;
+
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "day-card";
+
+    const detail = analysis.complete
+      ? chosen.map((item) => item.name).join(" · ")
+      : `${chosen.length} of ${analysis.target} exercises chosen`;
+
+    const pillClass = analysis.complete ? "is-good" : "";
+    const pillText = analysis.complete ? "Complete" : chosen.length ? "In progress" : "Empty";
+
+    card.innerHTML = `
+      <span class="day-body">
+        <span class="day-index">Day ${index + 1}</span>
+        <span class="day-name">${DAY_TYPES[dayType].label}</span>
+        <span class="day-detail">${detail}</span>
       </span>
-    </button>
+      <span class="status-pill ${pillClass}">${pillText}</span>
+    `;
 
-    <button type="button" class="half half--body" data-goto="bodybuilding" aria-label="Bodybuilding — balanced training splits built session by session">
-      <!-- dumbbell: compact, chunky heads -->
-      <svg class="ico" viewBox="0 0 64 64" aria-hidden="true">
-        <rect x="11" y="17" width="13" height="30" rx="4"/>
-        <rect x="40" y="17" width="13" height="30" rx="4"/>
-        <path d="M24 32h16" stroke-width="3"/>
-      </svg>
-      <span class="kick">// Physique</span>
-      <h2>Body<br/>building</h2>
-      <p class="sub">PPL, Upper/Lower or Full Body. Build each session exercise by exercise, evenly balanced across muscle groups.</p>
-      <span class="go">Enter
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    card.addEventListener("click", () => openBuilder(index));
+    dayList.append(card);
+  });
+
+  const allBuilt = completeDays === plan.length;
+
+  if (state.programme && !programmeIsStale()) {
+    programmeStatus.textContent = `Saved ${formatSavedAt(state.programme.savedAt)}`;
+    programmeStatus.className = "status-pill is-good";
+  } else if (allBuilt) {
+    programmeStatus.textContent = state.programme ? "Edited since saving" : "Ready to save";
+    programmeStatus.className = `status-pill ${state.programme ? "is-warn" : "is-good"}`;
+  } else {
+    programmeStatus.textContent = `${completeDays} of ${plan.length} sessions built`;
+    programmeStatus.className = "status-pill";
+  }
+
+  programmeActions.classList.remove("hidden");
+  reviewButton.textContent = state.programme ? "Review weekly programme" : "Review & save programme";
+
+  if (allBuilt) {
+    programmeActionsNote.textContent = programmeIsStale() ? "Sessions changed since you last saved." : "";
+  } else {
+    const left = plan.length - completeDays;
+    programmeActionsNote.textContent = `Build ${left} more session${left === 1 ? "" : "s"} to finish your week.`;
+  }
+}
+
+function formatSavedAt(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+document.getElementById("changeSplitButton").addEventListener("click", () => {
+  state.draftSplit = state.split;
+  renderSplitScreen();
+  showScreen("split");
+});
+
+document.getElementById("resetButton").addEventListener("click", () => {
+  if (!window.confirm("Reset your profile and clear every built session?")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state.profile = null;
+  state.split = null;
+  state.draftSplit = null;
+  state.sessions = {};
+  state.declined = {};
+  state.programme = null;
+  state.activeDay = null;
+  showScreen("onboarding");
+});
+
+document.getElementById("switchToUpperLower").addEventListener("click", () => {
+  state.split = "upperLower";
+  state.draftSplit = "upperLower";
+  state.sessions = {};
+  state.declined = {};
+  state.programme = null;
+  saveState();
+  renderProgramme();
+});
+
+reviewButton.addEventListener("click", () => {
+  renderSummary();
+  showScreen("summary");
+});
+
+/* --- Weekly programme summary --- */
+
+const summaryWeek = document.getElementById("summaryWeek");
+const summaryStatus = document.getElementById("summaryStatus");
+const summarySummary = document.getElementById("summarySummary");
+const summarySplitName = document.getElementById("summarySplitName");
+const summarySavedNote = document.getElementById("summarySavedNote");
+const saveProgrammeButton = document.getElementById("saveProgrammeButton");
+const summaryFlash = document.getElementById("summaryFlash");
+
+function renderSummary() {
+  showFlash(summaryFlash, "");
+  const plan = dayPlan();
+  const { daysPerWeek, experience, sessionLength } = state.profile;
+  const saved = Boolean(state.programme) && !programmeIsStale();
+
+  summarySplitName.textContent = SPLITS[state.split].label;
+  summarySummary.textContent = `${daysPerWeek} days per week · ${EXPERIENCE_LABEL[experience]} · ${sessionLength} minute sessions`;
+
+  summaryStatus.textContent = saved ? "Saved" : state.programme ? "Unsaved changes" : "Not saved yet";
+  summaryStatus.className = `status-pill ${saved ? "is-good" : state.programme ? "is-warn" : ""}`;
+
+  summaryWeek.innerHTML = "";
+  plan.forEach((dayType, index) => {
+    const chosen = chosenFor(index);
+    const block = document.createElement("article");
+    block.className = "summary-day";
+    block.innerHTML = `
+      <div class="summary-day-head">
+        <div>
+          <p class="summary-day-index">Day ${index + 1}</p>
+          <h3>${DAY_TYPES[dayType].label}</h3>
+        </div>
+        <button class="ghost-button summary-day-edit" type="button">Edit</button>
+      </div>
+      <ol class="summary-exercises"></ol>
+    `;
+
+    const list = block.querySelector(".summary-exercises");
+    chosen.forEach((item) => {
+      const row = document.createElement("li");
+      row.innerHTML = `
+        <span class="summary-exercise-name">${item.name}</span>
+        <span class="summary-exercise-group">${CATEGORIES[item.category].label}</span>
+      `;
+      list.append(row);
+    });
+
+    block.querySelector(".summary-day-edit").addEventListener("click", () => openBuilder(index));
+    summaryWeek.append(block);
+  });
+
+  summarySavedNote.textContent = saved
+    ? `Saved ${formatSavedAt(state.programme.savedAt)} as your weekly programme.`
+    : state.programme
+    ? "You have changed a session since this was last saved."
+    : "";
+
+  saveProgrammeButton.textContent = state.programme ? "Update weekly programme" : "Save weekly programme";
+}
+
+saveProgrammeButton.addEventListener("click", () => {
+  saveProgramme();
+  renderSummary();
+});
+
+document.getElementById("summaryEditButton").addEventListener("click", () => {
+  renderProgramme();
+  showScreen("programme");
+});
+
+document.getElementById("summaryBackButton").addEventListener("click", () => {
+  renderProgramme();
+  showScreen("programme");
+});
+
+/* --- Session builder --- */
+
+const builderEyebrow = document.getElementById("builderEyebrow");
+const builderTitle = document.getElementById("builderTitle");
+const builderSummary = document.getElementById("builderSummary");
+const builderCount = document.getElementById("builderCount");
+const sessionPill = document.getElementById("sessionPill");
+const sessionRows = document.getElementById("sessionRows");
+const addRow = document.getElementById("addRow");
+const addRowLabel = document.getElementById("addRowLabel");
+const addRowHint = document.getElementById("addRowHint");
+const builderDone = document.getElementById("builderDone");
+const builderSaveNote = document.getElementById("builderSaveNote");
+const saveSessionButton = document.getElementById("saveSessionButton");
+const metricFocus = document.getElementById("metricFocus");
+const metricTarget = document.getElementById("metricTarget");
+const metricRequired = document.getElementById("metricRequired");
+
+function openBuilder(dayIndex) {
+  state.activeDay = dayIndex;
+  renderBuilder();
+  showScreen("builder");
+}
+
+function renderBuilder() {
+  const dayIndex = state.activeDay;
+  const dayType = dayPlan()[dayIndex];
+  const day = DAY_TYPES[dayType];
+  const chosen = chosenFor(dayIndex);
+  const analysis = analyseSession(dayType, chosen, declinedFor(dayIndex));
+
+  builderEyebrow.textContent = `Day ${dayIndex + 1}`;
+  builderTitle.textContent = day.label;
+  builderSummary.textContent = `Covers ${listCategories(day.required)}`;
+  builderCount.textContent = `${chosen.length} of ${analysis.target} exercises`;
+
+  sessionPill.textContent = analysis.complete ? "Complete" : chosen.length ? "In progress" : "Empty";
+  sessionPill.className = `status-pill ${analysis.complete ? "is-good" : ""}`;
+
+  metricFocus.textContent = listCategories(day.required);
+  metricTarget.textContent = `${analysis.target} exercises`;
+  metricRequired.textContent = analysis.uncovered.length ? listCategories(analysis.uncovered) : "None";
+
+  sessionRows.innerHTML = "";
+  chosen.forEach((item, index) => {
+    const category = CATEGORIES[item.category];
+    const row = document.createElement("li");
+    row.className = "session-row";
+    row.innerHTML = `
+      <span class="row-order">${index + 1}</span>
+      <span class="row-body">
+        <span class="row-name">${item.name}</span>
+        <span class="row-meta">${category.label}</span>
       </span>
-    </button>
+      <button class="row-remove" type="button" aria-label="Remove ${item.name}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+      </button>
+    `;
+    row.querySelector(".row-remove").addEventListener("click", () => {
+      const next = chosenFor(dayIndex).slice();
+      next.splice(index, 1);
+      state.sessions[String(dayIndex)] = next;
+      if (!next.length) delete state.declined[String(dayIndex)];
+      saveState();
+      renderBuilder();
+    });
+    sessionRows.append(row);
+  });
 
-  </main>
-</div>
+  const finished = analysis.slotsLeft === 0;
 
-<!-- ===================== POWERLIFTING ===================== -->
-<div class="view view--pl pl" id="powerliftingView">
-  <div class="hero-bg" aria-hidden="true"></div>
+  // Both caps are advisory. The row disappears only when every exercise the day
+  // covers is already in the session — never because a target was reached.
+  addRow.classList.toggle("hidden", !analysis.anythingLeft);
+  addRow.classList.toggle("is-override", finished);
+  builderDone.classList.toggle("hidden", !finished);
 
-  <!-- NAV -->
-  <header>
-    <nav>
-      <a href="#top" class="logo" aria-label="Powerlifting Progression home">
-        <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <rect x="1" y="13" width="4" height="6" rx="1" fill="#c44536"/>
-          <rect x="27" y="13" width="4" height="6" rx="1" fill="#c44536"/>
-          <rect x="5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
-          <rect x="23.5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
-          <rect x="8.5" y="14.5" width="15" height="3" fill="#f4f1ec"/>
-        </svg>
-        <b>PROGRESSION<span>.</span></b>
-      </a>
-      <div class="nav-links" id="navLinks">
-        <button type="button" class="nav-link active" data-lift="bench">Bench</button>
-        <button type="button" class="nav-link" data-lift="squat">Squat</button>
-        <button type="button" class="nav-link" data-lift="deadlift">Deadlift</button>
-        <button type="button" class="nav-link" data-lift="diet">Diet</button>
-        <button type="button" class="nav-link" data-lift="shop">Shop</button>
+  addRowLabel.textContent = finished ? "Add another exercise" : "Add exercise";
+  if (finished) {
+    addRowHint.textContent = "Past the recommended length";
+  } else {
+    addRowHint.textContent = analysis.recommendation ? `Recommended: ${analysis.recommendation.name}` : "";
+  }
+
+  if (analysis.uncovered.length) {
+    builderSaveNote.textContent = `Still to train: ${listCategories(analysis.uncovered)}. You can save anyway.`;
+  } else if (chosen.length < analysis.target) {
+    builderSaveNote.textContent = `${analysis.target - chosen.length} short of the suggested length. You can save anyway.`;
+  } else {
+    builderSaveNote.textContent = "";
+  }
+
+  if (finished) {
+    if (analysis.uncovered.length) {
+      builderDone.textContent = `Session full. Still missing ${listCategories(
+        analysis.uncovered
+      )} — swap an exercise out to fit it in.`;
+    } else if (analysis.overTarget) {
+      builderDone.textContent = `Session complete, plus ${analysis.overTarget} added by hand.`;
+    } else {
+      builderDone.textContent = "Session complete.";
+    }
+  }
+}
+
+function leaveBuilder() {
+  const message = flashMessage;
+  flashMessage = "";
+
+  // Completing the final session drops straight into the weekly summary, which
+  // is where the programme actually gets committed.
+  if (programmeComplete() && (!state.programme || programmeIsStale())) {
+    renderSummary();
+    showFlash(summaryFlash, message);
+    showScreen("summary");
+    return;
+  }
+  renderProgramme();
+  showFlash(programmeFlash, message);
+  showScreen("programme");
+}
+
+document.getElementById("builderBackButton").addEventListener("click", leaveBuilder);
+
+// Every edit already writes through to storage, so this button is a deliberate
+// finish-and-close rather than the only thing standing between the user and
+// losing work. It flushes state and confirms on the way out.
+saveSessionButton.addEventListener("click", () => {
+  const dayIndex = state.activeDay;
+  const count = chosenFor(dayIndex).length;
+  saveState();
+  setFlash(
+    count
+      ? `Day ${dayIndex + 1} saved — ${count} exercise${count === 1 ? "" : "s"}.`
+      : `Day ${dayIndex + 1} saved as empty.`
+  );
+  leaveBuilder();
+});
+
+/* --- Exercise picker --- */
+
+const pickerOverlay = document.getElementById("pickerOverlay");
+const pickerGroups = document.getElementById("pickerGroups");
+const pickerReason = document.getElementById("pickerReason");
+const pickerEyebrow = document.getElementById("pickerEyebrow");
+
+addRow.addEventListener("click", () => {
+  const dayIndex = state.activeDay;
+  const dayType = dayPlan()[dayIndex];
+  const chosen = chosenFor(dayIndex);
+  const analysis = analyseSession(dayType, chosen, declinedFor(dayIndex));
+  const taken = new Set(chosen.map((item) => item.name));
+  const pick = analysis.recommendation;
+
+  // Every exercise the day covers stays selectable, whatever the caps say. The
+  // recommendation is only surfaced first; it never narrows the list.
+  const groups = categoryPool(dayType)
+    .map((key) => ({
+      key,
+      category: CATEGORIES[key],
+      options: CATEGORIES[key].exercises.filter((name) => !taken.has(name) && name !== (pick && pick.name)),
+    }))
+    .filter((group) => group.options.length);
+
+  if (!pick && !groups.length) return;
+
+  pickerEyebrow.textContent =
+    chosen.length >= analysis.target ? "Extra exercise" : `Exercise ${chosen.length + 1} of ${analysis.target}`;
+
+  const reasons = [];
+  if (analysis.uncovered.length) {
+    reasons.push(`Still to train: ${listCategories(analysis.uncovered)}.`);
+  } else {
+    reasons.push("Every muscle group for this session is covered.");
+  }
+  if (analysis.restedCategories.length) {
+    reasons.push(
+      `${listCategories(analysis.restedCategories)} already have a full share, so they are no longer suggested — still pick them if you want.`
+    );
+  }
+  pickerReason.textContent = reasons.join(" ");
+
+  function optionButton(name, categoryKey, recommended) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `picker-option${recommended ? " is-recommended" : ""}`;
+    button.innerHTML = `
+      <span class="picker-option-name">${name}</span>
+      ${recommended ? '<span class="picker-badge">Recommended</span>' : ""}
+    `;
+    button.addEventListener("click", () => {
+      // Choosing something other than the suggestion retires that suggestion
+      // for this session, so the next tip responds to what was actually picked.
+      if (pick && pick.name !== name) {
+        const list = declinedFor(dayIndex).slice();
+        if (!list.includes(pick.name)) list.push(pick.name);
+        state.declined[String(dayIndex)] = list;
+      }
+      const next = chosenFor(dayIndex).slice();
+      next.push({ name, category: categoryKey });
+      state.sessions[String(dayIndex)] = next;
+      saveState();
+      closePicker();
+      renderBuilder();
+    });
+    return button;
+  }
+
+  pickerGroups.innerHTML = "";
+
+  if (pick) {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+      <div class="picker-group-head">
+        <strong>Suggested next</strong>
+        <span>${CATEGORIES[pick.category].label}</span>
       </div>
-      <div class="nav-actions">
-        <button type="button" class="btn btn-ghost" id="authBtn" data-auth-open data-auth-label style="padding:12px 20px">Sign in</button>
-        <a href="#setup" class="btn btn-primary" style="padding:12px 20px">Start free
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </a>
-        <button class="hamburger" id="burger" aria-label="Menu"><span></span><span></span><span></span></button>
+      <div class="picker-options"></div>
+    `;
+    wrapper.querySelector(".picker-options").append(optionButton(pick.name, pick.category, true));
+    pickerGroups.append(wrapper);
+  }
+
+  groups.forEach((group) => {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+      <div class="picker-group-head">
+        <strong>${group.category.label}</strong>
       </div>
-    </nav>
-    <div class="mobile-menu" id="mobileMenu">
-      <button type="button" class="nav-link active" data-lift="bench">Bench</button>
-      <button type="button" class="nav-link" data-lift="squat">Squat</button>
-      <button type="button" class="nav-link" data-lift="deadlift">Deadlift</button>
-      <button type="button" class="nav-link" data-lift="diet">Diet</button>
-      <button type="button" class="nav-link" data-lift="shop">Shop</button>
-      <a href="#setup">Your profile</a>
-      <button type="button" class="nav-link" id="authBtnMobile" data-auth-open data-auth-label>Sign in</button>
-    </div>
-  </header>
+      <div class="picker-options"></div>
+    `;
+    const options = wrapper.querySelector(".picker-options");
+    group.options.forEach((name) => options.append(optionButton(name, group.key, false)));
+    pickerGroups.append(wrapper);
+  });
 
-  <!-- HERO -->
-  <section class="hero" id="top">
-    <div class="plate" style="width:520px;height:520px;top:-120px;right:-160px;opacity:.5"></div>
-    <div class="plate" style="width:300px;height:300px;bottom:-90px;left:-120px;opacity:.4;animation-delay:-9s"></div>
-    <div class="wrap hero-grid">
-      <div>
-        <span class="eyebrow enter" style="animation-delay:.1s">// Powerlifting Progression</span>
-        <h1 class="hero-title">
-          <span class="ln"><span style="animation-delay:.18s">Build your</span></span>
-          <span class="ln"><span style="animation-delay:.30s">First <em>10-week</em></span></span>
-          <span class="ln"><span style="animation-delay:.42s"><em>block</em></span></span>
-        </h1>
-        <p class="sub enter" style="animation-delay:.62s">Generate a periodized program for bench, squat and deadlift — log every set and watch your working weight climb, week after week.</p>
-        <div class="cta enter" style="animation-delay:.74s">
-          <a href="#setup" class="btn btn-primary">Start your block
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          </a>
-          <a href="#how" class="btn btn-ghost">How it works</a>
-        </div>
-        <div class="facts enter" style="animation-delay:.86s">
-          <div class="fact"><span class="n">10 WEEKS</span><span class="l">Periodized blocks</span></div>
-          <div class="fact"><span class="n">3 LIFTS</span><span class="l">Bench · Squat · Deadlift</span></div>
-          <div class="fact"><span class="n">AUTO</span><span class="l">Progression that adapts</span></div>
-        </div>
-      </div>
+  pickerOverlay.classList.remove("hidden");
+});
 
-      <!-- reskinned setup card -->
-      <div class="setup" id="setup">
-        <div class="setup-top">
-          <div class="dots" id="setupDots"><i class="on"></i><i></i><i></i></div>
-          <span class="step" id="setupStepLabel">STEP 01 / 03</span>
-        </div>
-        <div class="setup-body">
+function closePicker() {
+  pickerOverlay.classList.add("hidden");
+}
 
-          <form id="profileForm" class="setup-step">
-            <span class="kick">Powerlifting setup</span>
-            <h3>Your profile</h3>
-            <div class="field">
-              <label>Age</label>
-              <div class="ctrl"><select id="ageInput" required></select></div>
-            </div>
-            <div class="field">
-              <label>Body weight</label>
-              <div class="ctrl"><input id="weightInput" type="number" min="30" max="250" step="0.1" placeholder="75" required /><span class="unit">kg</span></div>
-            </div>
-            <div class="field">
-              <label>Name</label>
-              <div class="ctrl"><input id="nameInput" type="text" placeholder="Your name" required /></div>
-            </div>
-            <p class="form-error" id="profileError" role="alert" style="color:var(--rust);font-weight:700;min-height:20px;font-size:13px"></p>
-            <button class="btn btn-primary" type="submit">Continue
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </button>
-          </form>
+document.getElementById("pickerClose").addEventListener("click", closePicker);
+pickerOverlay.addEventListener("click", (event) => {
+  if (event.target === pickerOverlay) closePicker();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !pickerOverlay.classList.contains("hidden")) closePicker();
+});
 
-          <div id="setupContinue" class="setup-step hidden">
-            <span class="kick">Profile saved</span>
-            <h3 id="continueTitle">Nice to meet you</h3>
-            <p class="setup-summary" id="continueSummary"></p>
-            <a href="#gen" class="btn btn-primary">Start your block
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </a>
-          </div>
+/* -------------------------------------------------------------------------
+ * Boot
+ * ---------------------------------------------------------------------- */
 
-          <div id="setupDone" class="setup-step hidden">
-            <span class="kick">Block ready</span>
-            <h3 id="doneTitle">Welcome back</h3>
-            <p class="setup-summary" id="doneSummary"></p>
-            <a href="#progress" class="btn btn-primary">View your block
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </a>
-            <button type="button" class="btn btn-ghost" id="resetProfileBtn" style="width:100%;justify-content:center;margin-top:10px">Reset profile</button>
-          </div>
+function init() {
+  fillDayOptions();
+  loadState();
 
-        </div>
-      </div>
-    </div>
-  </section>
+  if (state.profile) {
+    daysInput.value = String(state.profile.daysPerWeek);
+    experienceInput.value = state.profile.experience;
+    lengthInput.value = String(state.profile.sessionLength);
+  }
 
-  <hr class="rule" />
+  if (state.profile && state.split) {
+    state.draftSplit = state.split;
+    renderProgramme();
+    showScreen("programme");
+  } else if (state.profile) {
+    state.draftSplit = recommendedSplit();
+    renderSplitScreen();
+    showScreen("split");
+  } else {
+    showScreen("onboarding");
+  }
+}
 
-  <!-- PROGRESSION GRAPH — the star -->
-  <section class="section" id="progress">
-    <div class="wrap graph-wrap">
-      <div class="graph-copy reveal">
-        <span class="eyebrow">// The projection</span>
-        <div class="big" style="margin-top:16px">Watch your<br/>working weight <em>climb</em></div>
-        <p style="color:var(--t70);font-size:17px;max-width:420px;margin-top:20px">Every block plots your projected working weight across all ten weeks — so you always know the number you're chasing next session.</p>
-      </div>
-      <div class="chart reveal">
-        <div class="clab">
-          <span class="t" id="chartLabel">Projected working weight</span>
-          <span class="v"><span id="peakKg">--</span> <span id="peakUnit"></span></span>
-        </div>
-        <span class="status-pill" id="chartStatus" style="margin-bottom:10px;display:inline-flex">No block yet</span>
-        <div id="chartBody">
-          <svg viewBox="0 0 520 260" fill="none" preserveAspectRatio="none" id="chartSvg">
-            <g stroke="rgba(244,241,236,.06)" stroke-width="1">
-              <line x1="0" y1="60" x2="520" y2="60"/><line x1="0" y1="120" x2="520" y2="120"/><line x1="0" y1="180" x2="520" y2="180"/>
-            </g>
-            <g id="bars"></g>
-            <polyline id="line" fill="none" stroke="var(--rust)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
-            <g id="dots"></g>
-          </svg>
-          <div class="xr" id="chartXr"></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- HOW IT WORKS -->
-  <section class="section" id="how">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <span class="eyebrow">// How it works</span>
-        <h2>Three steps to a stronger block</h2>
-        <p>No spreadsheets, no guesswork. Set your numbers once and the program builds — and adapts — around you.</p>
-      </div>
-      <div class="steps">
-        <div class="step reveal">
-          <div class="no">01</div><h3>Set your maxes</h3>
-          <p>Enter your current 1RM for bench, squat and deadlift, plus your bodyweight and rounding preference.</p>
-        </div>
-        <div class="step reveal">
-          <div class="no">02</div><h3>Generate a block</h3>
-          <p>Pick a template — accelerated wave periodization — and generate a full 10-week block in one tap.</p>
-        </div>
-        <div class="step reveal">
-          <div class="no">03</div><h3>Log &amp; progress</h3>
-          <p>Record every set. Actuals feed back in, projections update, and next week's targets adjust to you.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- GENERATOR -->
-  <section class="section" id="gen" style="padding-top:20px">
-    <div class="wrap reveal">
-      <div class="gen" id="genPanel">
-        <div class="left">
-          <span class="tag" id="genDuration"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c44536" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg> 10 weeks</span>
-          <h3 id="genTitle">Accelerated wave periodization</h3>
-          <p id="genDesc">A proven 10-week wave — volume climbs, then intensity peaks. Each week ramps the working weight toward a new max.</p>
-          <div class="template-grid" id="templateGrid"></div>
-          <div class="weeks" id="weekBars"></div>
-        </div>
-        <div class="right">
-          <div class="field">
-            <label id="genMaxLabel">Current bench press 1RM</label>
-            <div class="ctrl"><input id="genMaxInput" type="number" min="20" max="500" step="2.5" placeholder="120" /><span class="unit">kg</span></div>
-          </div>
-          <button type="button" class="calc-toggle" id="calcToggle">Don't know your max? Estimate it from a set →</button>
-          <div class="calc-1rm hidden" id="calc1rmBox">
-            <div class="modal-grid" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
-              <div class="field" style="margin-bottom:0">
-                <label>Weight lifted</label>
-                <div class="ctrl"><input id="calcWeightInput" type="number" min="1" step="0.5" placeholder="100" /><span class="unit">kg</span></div>
-              </div>
-              <div class="field" style="margin-bottom:0">
-                <label>Reps performed</label>
-                <div class="ctrl"><input id="calcRepsInput" type="number" min="1" max="20" step="1" placeholder="5" /></div>
-              </div>
-            </div>
-            <div class="calc-result-row">
-              <span>Estimated 1RM: <b id="calc1rmResult">--</b></span>
-              <button type="button" class="btn btn-ghost" id="calcUseBtn" disabled>Use this</button>
-            </div>
-          </div>
-          <label style="font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--t50)">Rounding</label>
-          <div class="rounding" id="genRounding">
-            <button type="button" class="on" data-value="2.5">2.5 kg</button><button type="button" data-value="5">5 kg</button>
-          </div>
-          <p class="form-error" id="genError" role="alert" style="color:var(--rust);font-weight:700;min-height:20px;font-size:13px"></p>
-          <button type="button" id="genSubmit" class="btn btn-primary" style="justify-content:center">Generate block
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2L4 14h7l-2 8 9-12h-7l2-8z"/></svg>
-          </button>
-        </div>
-        <div class="right hidden" id="genNoGenerator" style="align-items:center;text-align:center">
-          <p id="genPlaceholderMessage" style="color:var(--t70)">This section is ready for your content.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FEATURES -->
-  <section class="section" id="feat">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <span class="eyebrow">// Everything in the block</span>
-        <h2>Built for the lift, not the spreadsheet</h2>
-        <p>Programming, logging, reminders, nutrition and gear — the whole training loop in one place.</p>
-      </div>
-      <div class="feat">
-        <div class="fcard wide reveal">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 4v16h16"/><path d="M4 15l5-5 4 4 7-7"/></svg></div>
-          <h3>Lift tracking that feeds the plan</h3>
-          <p id="trackHint">Log programmed vs actual sets, reps, weight, intensity and notes. Click a row to log a session — every entry sharpens next week's targets.</p>
-          <div class="track">
-            <table>
-              <thead><tr><th class="done-col">Done</th><th>Session</th><th>Week</th><th>Sets</th><th>Reps</th><th>Weight</th><th>Intensity</th><th>Notes</th></tr></thead>
-              <tbody id="trackRows">
-                <tr><td colspan="8">Enter your bench press 1RM to create the first block.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="fcard reveal">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
-          <h3>Session reminders</h3>
-          <p>Get notified 5, 10, 15, 30 or 60 minutes before a session so you never miss a working set.</p>
-        </div>
-        <div class="fcard reveal">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 2v20M2 7l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg></div>
-          <h3>Periodized blocks</h3>
-          <p>Accelerated wave periodization ramps volume then intensity across a full ten-week cycle.</p>
-        </div>
-        <div class="fcard reveal">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 3v18M5 8h14M7 3h10l-1 5H8z"/></svg></div>
-          <h3>Diet &amp; bodyweight</h3>
-          <p>Track bodyweight against your class and keep your fuelling on target through the block.</p>
-        </div>
-        <div class="fcard reveal">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M6 2l1.5 4h9L18 2M4 6h16l-1.5 14h-13z"/></svg></div>
-          <h3>Gear shop</h3>
-          <p>Belts, sleeves, chalk and straps — everything you need for the platform, in one tap.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- STATS -->
-  <section class="section" style="padding-top:20px">
-    <div class="wrap">
-      <div class="stats">
-        <div class="stat reveal"><div class="n" data-count="18420">0</div><div class="l">Blocks generated</div></div>
-        <div class="stat reveal"><div class="n" data-count="94">0<span>%</span></div><div class="l">Hit a new PR</div></div>
-        <div class="stat reveal"><div class="n" data-count="10">0</div><div class="l">Week cycles</div></div>
-        <div class="stat reveal"><div class="n"><span>+</span><span data-count="21">0</span><span> kg</span></div><div class="l">Avg bench added</div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA -->
-  <section class="section" style="padding-top:20px">
-    <div class="wrap reveal">
-      <div class="cta-band">
-        <span class="eyebrow">// Your first block is free</span>
-        <h2 style="margin-top:14px">Load the bar.</h2>
-        <p>Set your maxes, generate your first 10-week block, and start chasing the next number tonight.</p>
-        <a href="#setup" class="btn btn-primary">Start your block
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- FOOTER -->
-  <footer>
-    <div class="wrap">
-      <div class="foot-top">
-        <div class="foot-brand">
-          <a href="#top" class="logo" aria-label="home">
-            <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <rect x="1" y="13" width="4" height="6" rx="1" fill="#c44536"/><rect x="27" y="13" width="4" height="6" rx="1" fill="#c44536"/>
-              <rect x="5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/><rect x="23.5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
-              <rect x="8.5" y="14.5" width="15" height="3" fill="#f4f1ec"/>
-            </svg>
-            <b>PROGRESSION<span>.</span></b>
-          </a>
-          <p>Periodized powerlifting blocks that build themselves around you — and get heavier every week.</p>
-        </div>
-        <div class="foot-col"><h4>Lifts</h4><a href="#how">Bench</a><a href="#how">Squat</a><a href="#how">Deadlift</a></div>
-        <div class="foot-col"><h4>Product</h4><a href="#gen">Generator</a><a href="#feat">Tracking</a><a href="#feat">Diet</a><a href="#feat">Shop</a></div>
-        <div class="foot-col"><h4>Company</h4><a href="#">About</a><a href="#">Support</a><a href="#">Privacy</a></div>
-      </div>
-      <div class="foot-bottom">
-        <span>© 2026 Powerlifting Progression</span>
-        <span>Built to get heavier</span>
-      </div>
-    </div>
-  </footer>
-
-  <div class="modal-overlay hidden" id="modalOverlay">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-head">
-        <h3 id="modalTitle">Session</h3>
-        <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
-      </div>
-      <div class="modal-programmed">
-        <div><span class="l">Weight</span><span class="v" id="modalProgWeight">-</span></div>
-        <div><span class="l">Sets</span><span class="v" id="modalProgSets">-</span></div>
-        <div><span class="l">Reps</span><span class="v" id="modalProgReps">-</span></div>
-      </div>
-      <form id="modalForm">
-        <div class="modal-grid">
-          <div class="field"><label>Actual weight</label><div class="ctrl"><input id="modalActualWeight" type="number" step="0.5" min="0" /><span class="unit">kg</span></div></div>
-          <div class="field"><label>Actual sets</label><div class="ctrl"><input id="modalActualSets" type="number" min="0" /></div></div>
-          <div class="field"><label>Actual reps</label><div class="ctrl"><input id="modalActualReps" type="number" min="0" /></div></div>
-        </div>
-        <div class="modal-grid" style="grid-template-columns:1fr 1fr">
-          <div class="field"><label>Date</label><div class="ctrl"><input id="modalDate" type="date" /></div></div>
-          <div class="field"><label>Time</label><div class="ctrl"><input id="modalTime" type="time" /></div></div>
-        </div>
-        <div class="modal-notify">
-          <label class="toggle-row"><input id="modalNotify" type="checkbox" /><span>Notify me</span></label>
-          <div class="field"><label>Minutes before</label><div class="ctrl">
-            <select id="modalNotifyMinutes">
-              <option value="5">5 min</option><option value="10">10 min</option><option value="15" selected>15 min</option><option value="30">30 min</option><option value="60">60 min</option>
-            </select>
-          </div></div>
-        </div>
-        <p class="form-error" id="modalError" role="alert" style="color:var(--rust);font-weight:700;min-height:20px;font-size:13px"></p>
-        <div class="modal-actions"><button class="btn btn-primary" type="submit">Save session</button></div>
-      </form>
-    </div>
-  </div>
-
-  
-  </div>
-</div>
-
-<!-- ===================== BODYBUILDING ===================== -->
-<div class="view view--bb bb" id="bodybuildingView">
-  <main class="app-shell">
-        <!-- 1. ONBOARDING -->
-        <section class="screen onboarding-screen active" id="onboardingScreen" aria-labelledby="onboardingTitle">
-          <div class="brand-mark">
-            <span aria-hidden="true"></span>
-            <span aria-hidden="true"></span>
-            <span aria-hidden="true"></span>
-            <span class="wordmark">Progression<em>BB</em></span>
-          </div>
-          <div class="panel onboarding-panel">
-            <div class="setup-top">
-              <div class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
-              <span class="step">Step 01 / 02</span>
-            </div>
-            <div class="setup-body">
-            <p class="eyebrow">Bodybuilding setup</p>
-            <h1 id="onboardingTitle">Build your training split</h1>
-            <form id="onboardingForm" novalidate>
-              <label>
-                <span>Days per week</span>
-                <select id="daysInput" name="days" required></select>
-              </label>
-              <label>
-                <span>Training experience</span>
-                <select id="experienceInput" name="experience" required>
-                  <option value="beginner">Beginner &mdash; under 1 year</option>
-                  <option value="intermediate" selected>Intermediate &mdash; 1 to 3 years</option>
-                  <option value="advanced">Advanced &mdash; 3 years plus</option>
-                </select>
-              </label>
-              <label>
-                <span>Session length</span>
-                <select id="lengthInput" name="length" required>
-                  <option value="30">30 minutes</option>
-                  <option value="45">45 minutes</option>
-                  <option value="60" selected>60 minutes</option>
-                  <option value="90">90 minutes</option>
-                </select>
-              </label>
-              <p class="form-error" id="onboardingError" role="alert"></p>
-              <button class="primary-button" type="submit">Choose a split</button>
-            </form>
-            </div>
-          </div>
-        </section>
-
-        <!-- 2. SPLIT SELECTION -->
-        <section class="screen dashboard-screen" id="splitScreen" aria-labelledby="splitTitle">
-          <header class="topbar">
-            <div>
-              <p class="eyebrow" id="splitEyebrow">Step 2 of 2</p>
-              <h1 id="splitTitle">Pick your split</h1>
-              <p class="thanks-message" id="splitSummary"></p>
-            </div>
-            <button class="icon-button" id="splitBackButton" type="button" aria-label="Back to setup" title="Back to setup">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
-            </button>
-          </header>
-
-          <section class="content-panel">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Available splits</p>
-                <h2>Three ways to organise the week</h2>
-              </div>
-            </div>
-            <div class="split-grid" id="splitGrid"></div>
-            <div class="panel-actions">
-              <button class="primary-button" id="splitContinue" type="button" disabled>Build programme</button>
-            </div>
-          </section>
-        </section>
-
-        <!-- 3. PROGRAMME OVERVIEW -->
-        <section class="screen dashboard-screen" id="programmeScreen" aria-labelledby="programmeTitle">
-          <header class="topbar">
-            <div>
-              <p class="eyebrow" id="programmeEyebrow">Your programme</p>
-              <h1 id="programmeTitle">Training week</h1>
-              <p class="thanks-message" id="programmeSummary"></p>
-            </div>
-            <div class="topbar-actions">
-              <button class="icon-button" id="changeSplitButton" type="button" aria-label="Change split" title="Change split">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 7l4-4M4 7l4 4M20 17H4m16 0-4-4m4 4-4 4" /></svg>
-              </button>
-              <button class="icon-button" id="resetButton" type="button" aria-label="Reset programme" title="Reset programme">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v6h6" /></svg>
-              </button>
-            </div>
-          </header>
-
-          <section class="content-panel" id="programmePanel">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow" id="programmeSplitName">Upper / Lower</p>
-                <h2>Sessions</h2>
-              </div>
-              <span class="status-pill" id="programmeStatus">Not started</span>
-            </div>
-            <p class="flash-note hidden" id="programmeFlash" role="status"></p>
-            <div class="day-list" id="dayList"></div>
-            <div class="empty-note hidden" id="splitPlaceholder">
-              <p><strong>This split is not built yet.</strong></p>
-              <p>Upper / Lower is the split with a full session builder behind it. The exercise pools and the recommendation engine are shared, so the other two slot in on the same foundation.</p>
-              <button class="ghost-button" id="switchToUpperLower" type="button">Switch to Upper / Lower</button>
-            </div>
-            <div class="panel-actions" id="programmeActions">
-              <p class="actions-note" id="programmeActionsNote"></p>
-              <button class="primary-button" id="reviewButton" type="button">Review &amp; save programme</button>
-            </div>
-          </section>
-        </section>
-
-        <!-- 4. SESSION BUILDER -->
-        <section class="screen dashboard-screen" id="builderScreen" aria-labelledby="builderTitle">
-          <header class="topbar">
-            <div>
-              <p class="eyebrow" id="builderEyebrow">Day 1</p>
-              <h1 id="builderTitle">Upper</h1>
-              <p class="thanks-message" id="builderSummary"></p>
-            </div>
-            <button class="icon-button" id="builderBackButton" type="button" aria-label="Back to programme" title="Back to programme">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
-            </button>
-          </header>
-
-          <section class="builder-grid">
-            <div class="content-panel builder-panel">
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">Session</p>
-                  <h2 id="builderCount">0 of 6 exercises</h2>
-                </div>
-                <span class="status-pill" id="sessionPill">Empty</span>
-              </div>
-
-              <ol class="session-rows" id="sessionRows"></ol>
-
-              <button class="add-row" id="addRow" type="button">
-                <span class="add-row-plus" aria-hidden="true">+</span>
-                <span class="add-row-label" id="addRowLabel">Add exercise</span>
-                <span class="add-row-hint" id="addRowHint"></span>
-              </button>
-
-              <p class="builder-done hidden" id="builderDone">Session complete.</p>
-
-              <div class="builder-actions">
-                <p class="actions-note" id="builderSaveNote"></p>
-                <button class="primary-button" id="saveSessionButton" type="button">Save session</button>
-              </div>
-            </div>
-
-            <div class="panel metric-panel">
-              <p class="eyebrow">This session</p>
-              <dl>
-                <div>
-                  <dt>Muscle groups</dt>
-                  <dd class="dd-list" id="metricFocus">&mdash;</dd>
-                </div>
-                <div>
-                  <dt>Session size</dt>
-                  <dd id="metricTarget">6 exercises</dd>
-                </div>
-                <div>
-                  <dt>Still to train</dt>
-                  <dd class="dd-list" id="metricRequired">&mdash;</dd>
-                </div>
-              </dl>
-              <p class="metric-note">Follow the recommendation each time and the session comes out evenly distributed across the muscle groups it targets.</p>
-            </div>
-          </section>
-        </section>
-
-        <!-- 5. WEEKLY PROGRAMME SUMMARY -->
-        <section class="screen dashboard-screen" id="summaryScreen" aria-labelledby="summaryTitle">
-          <header class="topbar">
-            <div>
-              <p class="eyebrow" id="summaryEyebrow">Weekly programme</p>
-              <h1 id="summaryTitle">Your week</h1>
-              <p class="thanks-message" id="summarySummary"></p>
-            </div>
-            <button class="icon-button" id="summaryBackButton" type="button" aria-label="Back to sessions" title="Back to sessions">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
-            </button>
-          </header>
-
-          <section class="content-panel">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow" id="summarySplitName">Upper / Lower</p>
-                <h2>Every session, start to finish</h2>
-              </div>
-              <span class="status-pill" id="summaryStatus">Unsaved</span>
-            </div>
-            <p class="flash-note hidden" id="summaryFlash" role="status"></p>
-
-            <div class="summary-week" id="summaryWeek"></div>
-
-            <div class="panel-actions">
-              <p class="actions-note" id="summarySavedNote"></p>
-              <button class="ghost-button" id="summaryEditButton" type="button">Edit sessions</button>
-              <button class="primary-button" id="saveProgrammeButton" type="button">Save weekly programme</button>
-            </div>
-          </section>
-        </section>
-      </main>
-
-      <!-- EXERCISE PICKER -->
-      <div class="modal-overlay hidden" id="pickerOverlay">
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
-          <div class="modal-header">
-            <div>
-              <p class="eyebrow" id="pickerEyebrow">Next up</p>
-              <h3 id="pickerTitle">Choose exercise</h3>
-            </div>
-            <button class="icon-button" id="pickerClose" type="button" aria-label="Close picker">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
-            </button>
-          </div>
-          <p class="picker-reason" id="pickerReason"></p>
-          <div class="picker-groups" id="pickerGroups"></div>
-        </div>
-      </div>
-</div>
-
-
-<!-- ===================== DISCIPLINE LINK =====================
-     One control, shown in both disciplines. The inactive side is always a
-     single tap away, so switching never routes back through the landing. -->
-<nav class="discipline-nav" aria-label="Discipline">
-  <button type="button" class="dn-home" data-goto="landing" aria-label="Discipline chooser" title="Chooser">
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <rect x="1" y="13" width="4" height="6" rx="1" fill="currentColor"/>
-      <rect x="27" y="13" width="4" height="6" rx="1" fill="currentColor"/>
-      <rect x="5" y="10" width="3.5" height="12" rx="1" fill="currentColor"/>
-      <rect x="23.5" y="10" width="3.5" height="12" rx="1" fill="currentColor"/>
-      <rect x="8.5" y="14.5" width="15" height="3" fill="currentColor"/>
-    </svg>
-  </button>
-  <div class="dn-seg" role="group" aria-label="Switch discipline">
-    <button type="button" class="dn-opt" data-goto="powerlifting" data-for="powerlifting">
-      <span class="dn-dot" aria-hidden="true"></span>Powerlifting
-    </button>
-    <button type="button" class="dn-opt" data-goto="bodybuilding" data-for="bodybuilding">
-      <span class="dn-dot" aria-hidden="true"></span>Bodybuilding
-    </button>
-  </div>
-  <button type="button" class="dn-account" data-auth-open data-auth-label-short aria-label="Sign in" title="Sign in">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M5 20a7 7 0 0 1 14 0"/>
-    </svg>
-    <span class="dn-account-text">Sign in</span>
-  </button>
-</nav>
-
-
-<!-- ===================== ACCOUNT =====================
-     Shell-level: one account covers both disciplines, so the modal lives
-     outside either view and is reachable from both. -->
-<div class="auth-overlay hidden" id="authOverlay">
-  <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
-    <div class="auth-head">
-      <div>
-        <p class="auth-kick">Your account</p>
-        <h3 id="authModalTitle">Sign in</h3>
-      </div>
-      <button type="button" class="auth-close" id="authModalClose" aria-label="Close">&times;</button>
-    </div>
-
-    <p class="auth-note">One account covers powerlifting and bodybuilding. Your blocks and splits follow you to any device.</p>
-
-    <div class="auth-tabs" id="authTabs" role="group" aria-label="Sign in or create an account">
-      <button type="button" class="auth-tab is-on" id="authTabSignin" data-mode="signin">Sign in</button>
-      <button type="button" class="auth-tab" id="authTabSignup" data-mode="signup">Create account</button>
-    </div>
-
-    <form id="authForm">
-      <div class="auth-field">
-        <label for="authEmail">Email</label>
-        <input id="authEmail" type="email" required placeholder="you@example.com" autocomplete="email" />
-      </div>
-      <div class="auth-field">
-        <label for="authPassword">Password</label>
-        <input id="authPassword" type="password" required minlength="6" placeholder="At least 6 characters" autocomplete="current-password" />
-      </div>
-      <p class="auth-error" id="authError" role="alert"></p>
-      <button class="auth-submit" type="submit" id="authSubmit">Sign in</button>
-    </form>
-
-    <div class="auth-signed hidden" id="authSignedIn">
-      <p class="auth-signed-as">Signed in as <strong id="authWho">—</strong></p>
-      <p class="auth-note">Signing out ends the session on this device. Your saved work stays here.</p>
-      <button class="auth-signout" type="button" id="authSignOut">Sign out</button>
-    </div>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="shell.js"></script>
-<script src="powerlifting.js"></script>
-<script src="bodybuilding.js"></script>
-</body>
-</html>
+init();
