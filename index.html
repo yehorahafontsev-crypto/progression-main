@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en" data-view="landing">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Progression — Powerlifting &amp; Bodybuilding</title>
+<meta name="description" content="Periodized powerlifting blocks and balanced bodybuilding splits. One app, two disciplines." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Figtree:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ===================== LANDING ===================== -->
+<div class="view view--landing landing" id="landingView">
+  <div class="brand" aria-hidden="true">
+    <svg viewBox="0 0 32 32" fill="none">
+      <rect x="1" y="13" width="4" height="6" rx="1" fill="#c44536"/>
+      <rect x="27" y="13" width="4" height="6" rx="1" fill="#c44536"/>
+      <rect x="5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
+      <rect x="23.5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
+      <rect x="8.5" y="14.5" width="15" height="3" fill="#f4f1ec"/>
+    </svg>
+    <b>PROGRESSION<span>.</span></b>
+  </div>
+
+  <main class="choose">
+
+    <button type="button" class="half half--power" data-goto="powerlifting" aria-label="Powerlifting — periodized 10-week blocks for bench, squat and deadlift">
+      <!-- barbell: long span, loaded sleeves -->
+      <svg class="ico" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M3 27v10M61 27v10"/>
+        <rect x="8" y="20" width="6" height="24" rx="1.5"/>
+        <rect x="16" y="25" width="4" height="14" rx="1.5"/>
+        <rect x="44" y="25" width="4" height="14" rx="1.5"/>
+        <rect x="50" y="20" width="6" height="24" rx="1.5"/>
+        <path d="M20 32h24"/>
+      </svg>
+      <span class="kick">// Strength</span>
+      <h2>Power<br/>lifting</h2>
+      <p class="sub">Periodized 10-week blocks for bench, squat and deadlift. Log every set and watch the working weight climb.</p>
+      <span class="go">Enter
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </span>
+    </button>
+
+    <button type="button" class="half half--body" data-goto="bodybuilding" aria-label="Bodybuilding — balanced training splits built session by session">
+      <!-- dumbbell: compact, chunky heads -->
+      <svg class="ico" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="11" y="17" width="13" height="30" rx="4"/>
+        <rect x="40" y="17" width="13" height="30" rx="4"/>
+        <path d="M24 32h16" stroke-width="3"/>
+      </svg>
+      <span class="kick">// Physique</span>
+      <h2>Body<br/>building</h2>
+      <p class="sub">PPL, Upper/Lower or Full Body. Build each session exercise by exercise, evenly balanced across muscle groups.</p>
+      <span class="go">Enter
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </span>
+    </button>
+
+  </main>
+</div>
+
+<!-- ===================== POWERLIFTING ===================== -->
+<div class="view view--pl pl" id="powerliftingView">
+  <div class="hero-bg" aria-hidden="true"></div>
+
+  <!-- NAV -->
+  <header>
+    <nav>
+      <a href="#top" class="logo" aria-label="Powerlifting Progression home">
+        <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <rect x="1" y="13" width="4" height="6" rx="1" fill="#c44536"/>
+          <rect x="27" y="13" width="4" height="6" rx="1" fill="#c44536"/>
+          <rect x="5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
+          <rect x="23.5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
+          <rect x="8.5" y="14.5" width="15" height="3" fill="#f4f1ec"/>
+        </svg>
+        <b>PROGRESSION<span>.</span></b>
+      </a>
+      <div class="nav-links" id="navLinks">
+        <button type="button" class="nav-link active" data-lift="bench">Bench</button>
+        <button type="button" class="nav-link" data-lift="squat">Squat</button>
+        <button type="button" class="nav-link" data-lift="deadlift">Deadlift</button>
+        <button type="button" class="nav-link" data-lift="diet">Diet</button>
+        <button type="button" class="nav-link" data-lift="shop">Shop</button>
+      </div>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-ghost" id="authBtn" data-auth-open data-auth-label style="padding:12px 20px">Sign in</button>
+        <a href="#setup" class="btn btn-primary" style="padding:12px 20px">Start free
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <button class="hamburger" id="burger" aria-label="Menu"><span></span><span></span><span></span></button>
+      </div>
+    </nav>
+    <div class="mobile-menu" id="mobileMenu">
+      <button type="button" class="nav-link active" data-lift="bench">Bench</button>
+      <button type="button" class="nav-link" data-lift="squat">Squat</button>
+      <button type="button" class="nav-link" data-lift="deadlift">Deadlift</button>
+      <button type="button" class="nav-link" data-lift="diet">Diet</button>
+      <button type="button" class="nav-link" data-lift="shop">Shop</button>
+      <a href="#setup">Your profile</a>
+      <button type="button" class="nav-link" id="authBtnMobile" data-auth-open data-auth-label>Sign in</button>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" id="top">
+    <div class="plate" style="width:520px;height:520px;top:-120px;right:-160px;opacity:.5"></div>
+    <div class="plate" style="width:300px;height:300px;bottom:-90px;left:-120px;opacity:.4;animation-delay:-9s"></div>
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow enter" style="animation-delay:.1s">// Powerlifting Progression</span>
+        <h1 class="hero-title">
+          <span class="ln"><span style="animation-delay:.18s">Build your</span></span>
+          <span class="ln"><span style="animation-delay:.30s">First <em>10-week</em></span></span>
+          <span class="ln"><span style="animation-delay:.42s"><em>block</em></span></span>
+        </h1>
+        <p class="sub enter" style="animation-delay:.62s">Generate a periodized program for bench, squat and deadlift — log every set and watch your working weight climb, week after week.</p>
+        <div class="cta enter" style="animation-delay:.74s">
+          <a href="#setup" class="btn btn-primary">Start your block
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href="#how" class="btn btn-ghost">How it works</a>
+        </div>
+        <div class="facts enter" style="animation-delay:.86s">
+          <div class="fact"><span class="n">10 WEEKS</span><span class="l">Periodized blocks</span></div>
+          <div class="fact"><span class="n">3 LIFTS</span><span class="l">Bench · Squat · Deadlift</span></div>
+          <div class="fact"><span class="n">AUTO</span><span class="l">Progression that adapts</span></div>
+        </div>
+      </div>
+
+      <!-- reskinned setup card -->
+      <div class="setup" id="setup">
+        <div class="setup-top">
+          <div class="dots" id="setupDots"><i class="on"></i><i></i><i></i></div>
+          <span class="step" id="setupStepLabel">STEP 01 / 03</span>
+        </div>
+        <div class="setup-body">
+
+          <form id="profileForm" class="setup-step">
+            <span class="kick">Powerlifting setup</span>
+            <h3>Your profile</h3>
+            <div class="field">
+              <label>Age</label>
+              <div class="ctrl"><select id="ageInput" required></select></div>
+            </div>
+            <div class="field">
+              <label>Body weight</label>
+              <div class="ctrl"><input id="weightInput" type="number" min="30" max="250" step="0.1" placeholder="75" required /><span class="unit">kg</span></div>
+            </div>
+            <div class="field">
+              <label>Name</label>
+              <div class="ctrl"><input id="nameInput" type="text" placeholder="Your name" required /></div>
+            </div>
+            <p class="form-error" id="profileError" role="alert" style="color:var(--rust);font-weight:700;min-height:20px;font-size:13px"></p>
+            <button class="btn btn-primary" type="submit">Continue
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </form>
+
+          <div id="setupContinue" class="setup-step hidden">
+            <span class="kick">Profile saved</span>
+            <h3 id="continueTitle">Nice to meet you</h3>
+            <p class="setup-summary" id="continueSummary"></p>
+            <a href="#gen" class="btn btn-primary">Start your block
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+          </div>
+
+          <div id="setupDone" class="setup-step hidden">
+            <span class="kick">Block ready</span>
+            <h3 id="doneTitle">Welcome back</h3>
+            <p class="setup-summary" id="doneSummary"></p>
+            <a href="#progress" class="btn btn-primary">View your block
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <button type="button" class="btn btn-ghost" id="resetProfileBtn" style="width:100%;justify-content:center;margin-top:10px">Reset profile</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- PROGRESSION GRAPH — the star -->
+  <section class="section" id="progress">
+    <div class="wrap graph-wrap">
+      <div class="graph-copy reveal">
+        <span class="eyebrow">// The projection</span>
+        <div class="big" style="margin-top:16px">Watch your<br/>working weight <em>climb</em></div>
+        <p style="color:var(--t70);font-size:17px;max-width:420px;margin-top:20px">Every block plots your projected working weight across all ten weeks — so you always know the number you're chasing next session.</p>
+      </div>
+      <div class="chart reveal">
+        <div class="clab">
+          <span class="t" id="chartLabel">Projected working weight</span>
+          <span class="v"><span id="peakKg">--</span> <span id="peakUnit"></span></span>
+        </div>
+        <span class="status-pill" id="chartStatus" style="margin-bottom:10px;display:inline-flex">No block yet</span>
+        <div id="chartBody">
+          <svg viewBox="0 0 520 260" fill="none" preserveAspectRatio="none" id="chartSvg">
+            <g stroke="rgba(244,241,236,.06)" stroke-width="1">
+              <line x1="0" y1="60" x2="520" y2="60"/><line x1="0" y1="120" x2="520" y2="120"/><line x1="0" y1="180" x2="520" y2="180"/>
+            </g>
+            <g id="bars"></g>
+            <polyline id="line" fill="none" stroke="var(--rust)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+            <g id="dots"></g>
+          </svg>
+          <div class="xr" id="chartXr"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section" id="how">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">// How it works</span>
+        <h2>Three steps to a stronger block</h2>
+        <p>No spreadsheets, no guesswork. Set your numbers once and the program builds — and adapts — around you.</p>
+      </div>
+      <div class="steps">
+        <div class="step reveal">
+          <div class="no">01</div><h3>Set your maxes</h3>
+          <p>Enter your current 1RM for bench, squat and deadlift, plus your bodyweight and rounding preference.</p>
+        </div>
+        <div class="step reveal">
+          <div class="no">02</div><h3>Generate a block</h3>
+          <p>Pick a template — accelerated wave periodization — and generate a full 10-week block in one tap.</p>
+        </div>
+        <div class="step reveal">
+          <div class="no">03</div><h3>Log &amp; progress</h3>
+          <p>Record every set. Actuals feed back in, projections update, and next week's targets adjust to you.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GENERATOR -->
+  <section class="section" id="gen" style="padding-top:20px">
+    <div class="wrap reveal">
+      <div class="gen" id="genPanel">
+        <div class="left">
+          <span class="tag" id="genDuration"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c44536" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg> 10 weeks</span>
+          <h3 id="genTitle">Accelerated wave periodization</h3>
+          <p id="genDesc">A proven 10-week wave — volume climbs, then intensity peaks. Each week ramps the working weight toward a new max.</p>
+          <div class="template-grid" id="templateGrid"></div>
+          <div class="weeks" id="weekBars"></div>
+        </div>
+        <div class="right">
+          <div class="field">
+            <label id="genMaxLabel">Current bench press 1RM</label>
+            <div class="ctrl"><input id="genMaxInput" type="number" min="20" max="500" step="2.5" placeholder="120" /><span class="unit">kg</span></div>
+          </div>
+          <button type="button" class="calc-toggle" id="calcToggle">Don't know your max? Estimate it from a set →</button>
+          <div class="calc-1rm hidden" id="calc1rmBox">
+            <div class="modal-grid" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+              <div class="field" style="margin-bottom:0">
+                <label>Weight lifted</label>
+                <div class="ctrl"><input id="calcWeightInput" type="number" min="1" step="0.5" placeholder="100" /><span class="unit">kg</span></div>
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label>Reps performed</label>
+                <div class="ctrl"><input id="calcRepsInput" type="number" min="1" max="20" step="1" placeholder="5" /></div>
+              </div>
+            </div>
+            <div class="calc-result-row">
+              <span>Estimated 1RM: <b id="calc1rmResult">--</b></span>
+              <button type="button" class="btn btn-ghost" id="calcUseBtn" disabled>Use this</button>
+            </div>
+          </div>
+          <label style="font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--t50)">Rounding</label>
+          <div class="rounding" id="genRounding">
+            <button type="button" class="on" data-value="2.5">2.5 kg</button><button type="button" data-value="5">5 kg</button>
+          </div>
+          <p class="form-error" id="genError" role="alert" style="color:var(--rust);font-weight:700;min-height:20px;font-size:13px"></p>
+          <button type="button" id="genSubmit" class="btn btn-primary" style="justify-content:center">Generate block
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2L4 14h7l-2 8 9-12h-7l2-8z"/></svg>
+          </button>
+        </div>
+        <div class="right hidden" id="genNoGenerator" style="align-items:center;text-align:center">
+          <p id="genPlaceholderMessage" style="color:var(--t70)">This section is ready for your content.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section" id="feat">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">// Everything in the block</span>
+        <h2>Built for the lift, not the spreadsheet</h2>
+        <p>Programming, logging, reminders, nutrition and gear — the whole training loop in one place.</p>
+      </div>
+      <div class="feat">
+        <div class="fcard wide reveal">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 4v16h16"/><path d="M4 15l5-5 4 4 7-7"/></svg></div>
+          <h3>Lift tracking that feeds the plan</h3>
+          <p id="trackHint">Log programmed vs actual sets, reps, weight, intensity and notes. Click a row to log a session — every entry sharpens next week's targets.</p>
+          <div class="track">
+            <table>
+              <thead><tr><th class="done-col">Done</th><th>Session</th><th>Week</th><th>Sets</th><th>Reps</th><th>Weight</th><th>Intensity</th><th>Notes</th></tr></thead>
+              <tbody id="trackRows">
+                <tr><td colspan="8">Enter your bench press 1RM to create the first block.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="fcard reveal">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+          <h3>Session reminders</h3>
+          <p>Get notified 5, 10, 15, 30 or 60 minutes before a session so you never miss a working set.</p>
+        </div>
+        <div class="fcard reveal">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 2v20M2 7l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg></div>
+          <h3>Periodized blocks</h3>
+          <p>Accelerated wave periodization ramps volume then intensity across a full ten-week cycle.</p>
+        </div>
+        <div class="fcard reveal">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 3v18M5 8h14M7 3h10l-1 5H8z"/></svg></div>
+          <h3>Diet &amp; bodyweight</h3>
+          <p>Track bodyweight against your class and keep your fuelling on target through the block.</p>
+        </div>
+        <div class="fcard reveal">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M6 2l1.5 4h9L18 2M4 6h16l-1.5 14h-13z"/></svg></div>
+          <h3>Gear shop</h3>
+          <p>Belts, sleeves, chalk and straps — everything you need for the platform, in one tap.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="section" style="padding-top:20px">
+    <div class="wrap">
+      <div class="stats">
+        <div class="stat reveal"><div class="n" data-count="18420">0</div><div class="l">Blocks generated</div></div>
+        <div class="stat reveal"><div class="n" data-count="94">0<span>%</span></div><div class="l">Hit a new PR</div></div>
+        <div class="stat reveal"><div class="n" data-count="10">0</div><div class="l">Week cycles</div></div>
+        <div class="stat reveal"><div class="n"><span>+</span><span data-count="21">0</span><span> kg</span></div><div class="l">Avg bench added</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section" style="padding-top:20px">
+    <div class="wrap reveal">
+      <div class="cta-band">
+        <span class="eyebrow">// Your first block is free</span>
+        <h2 style="margin-top:14px">Load the bar.</h2>
+        <p>Set your maxes, generate your first 10-week block, and start chasing the next number tonight.</p>
+        <a href="#setup" class="btn btn-primary">Start your block
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="wrap">
+      <div class="foot-top">
+        <div class="foot-brand">
+          <a href="#top" class="logo" aria-label="home">
+            <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <rect x="1" y="13" width="4" height="6" rx="1" fill="#c44536"/><rect x="27" y="13" width="4" height="6" rx="1" fill="#c44536"/>
+              <rect x="5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/><rect x="23.5" y="10" width="3.5" height="12" rx="1" fill="#f4f1ec"/>
+              <rect x="8.5" y="14.5" width="15" height="3" fill="#f4f1ec"/>
+            </svg>
+            <b>PROGRESSION<span>.</span></b>
+          </a>
+          <p>Periodized powerlifting blocks that build themselves around you — and get heavier every week.</p>
+        </div>
+        <div class="foot-col"><h4>Lifts</h4><a href="#how">Bench</a><a href="#how">Squat</a><a href="#how">Deadlift</a></div>
+        <div class="foot-col"><h4>Product</h4><a href="#gen">Generator</a><a href="#feat">Tracking</a><a href="#feat">Diet</a><a href="#feat">Shop</a></div>
+        <div class="foot-col"><h4>Company</h4><a href="#">About</a><a href="#">Support</a><a href="#">Privacy</a></div>
+      </div>
+      <div class="foot-bottom">
+        <span>© 2026 Powerlifting Progression</span>
+        <span>Built to get heavier</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="modal-overlay hidden" id="modalOverlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <h3 id="modalTitle">Session</h3>
+        <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-programmed">
+        <div><span class="l">Weight</span><span class="v" id="modalProgWeight">-</span></div>
+        <div><span class="l">Sets</span><span class="v" id="modalProgSets">-</span></div>
+        <div><span class="l">Reps</span><span class="v" id="modalProgReps">-</span></div>
+      </div>
+      <form id="modalForm">
+        <div class="modal-grid">
+          <div class="field"><label>Actual weight</label><div class="ctrl"><input id="modalActualWeight" type="number" step="0.5" min="0" /><span class="unit">kg</span></div></div>
+          <div class="field"><label>Actual sets</label><div class="ctrl"><input id="modalActualSets" type="number" min="0" /></div></div>
+          <div class="field"><label>Actual reps</label><div class="ctrl"><input id="modalActualReps" type="number" min="0" /></div></div>
+        </div>
+        <div class="modal-grid" style="grid-template-columns:1fr 1fr">
+          <div class="field"><label>Date</label><div class="ctrl"><input id="modalDate" type="date" /></div></div>
+          <div class="field"><label>Time</label><div class="ctrl"><input id="modalTime" type="time" /></div></div>
+        </div>
+        <div class="modal-notify">
+          <label class="toggle-row"><input id="modalNotify" type="checkbox" /><span>Notify me</span></label>
+          <div class="field"><label>Minutes before</label><div class="ctrl">
+            <select id="modalNotifyMinutes">
+              <option value="5">5 min</option><option value="10">10 min</option><option value="15" selected>15 min</option><option value="30">30 min</option><option value="60">60 min</option>
+            </select>
+          </div></div>
+        </div>
+        <p class="form-error" id="modalError" role="alert" style="color:var(--rust);font-weight:700;min-height:20px;font-size:13px"></p>
+        <div class="modal-actions"><button class="btn btn-primary" type="submit">Save session</button></div>
+      </form>
+    </div>
+  </div>
+
+  
+  </div>
+</div>
+
+<!-- ===================== BODYBUILDING ===================== -->
+<div class="view view--bb bb" id="bodybuildingView">
+  <main class="app-shell">
+        <!-- 1. ONBOARDING -->
+        <section class="screen onboarding-screen active" id="onboardingScreen" aria-labelledby="onboardingTitle">
+          <div class="brand-mark">
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span class="wordmark">Progression<em>BB</em></span>
+          </div>
+          <div class="panel onboarding-panel">
+            <div class="setup-top">
+              <div class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+              <span class="step">Step 01 / 02</span>
+            </div>
+            <div class="setup-body">
+            <p class="eyebrow">Bodybuilding setup</p>
+            <h1 id="onboardingTitle">Build your training split</h1>
+            <form id="onboardingForm" novalidate>
+              <label>
+                <span>Days per week</span>
+                <select id="daysInput" name="days" required></select>
+              </label>
+              <label>
+                <span>Training experience</span>
+                <select id="experienceInput" name="experience" required>
+                  <option value="beginner">Beginner &mdash; under 1 year</option>
+                  <option value="intermediate" selected>Intermediate &mdash; 1 to 3 years</option>
+                  <option value="advanced">Advanced &mdash; 3 years plus</option>
+                </select>
+              </label>
+              <label>
+                <span>Session length</span>
+                <select id="lengthInput" name="length" required>
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60" selected>60 minutes</option>
+                  <option value="90">90 minutes</option>
+                </select>
+              </label>
+              <p class="form-error" id="onboardingError" role="alert"></p>
+              <button class="primary-button" type="submit">Choose a split</button>
+            </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. SPLIT SELECTION -->
+        <section class="screen dashboard-screen" id="splitScreen" aria-labelledby="splitTitle">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow" id="splitEyebrow">Step 2 of 2</p>
+              <h1 id="splitTitle">Pick your split</h1>
+              <p class="thanks-message" id="splitSummary"></p>
+            </div>
+            <button class="icon-button" id="splitBackButton" type="button" aria-label="Back to setup" title="Back to setup">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
+            </button>
+          </header>
+
+          <section class="content-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Available splits</p>
+                <h2>Three ways to organise the week</h2>
+              </div>
+            </div>
+            <div class="split-grid" id="splitGrid"></div>
+            <div class="panel-actions">
+              <button class="primary-button" id="splitContinue" type="button" disabled>Build programme</button>
+            </div>
+          </section>
+        </section>
+
+        <!-- 3. PROGRAMME OVERVIEW -->
+        <section class="screen dashboard-screen" id="programmeScreen" aria-labelledby="programmeTitle">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow" id="programmeEyebrow">Your programme</p>
+              <h1 id="programmeTitle">Training week</h1>
+              <p class="thanks-message" id="programmeSummary"></p>
+            </div>
+            <div class="topbar-actions">
+              <button class="icon-button" id="changeSplitButton" type="button" aria-label="Change split" title="Change split">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 7l4-4M4 7l4 4M20 17H4m16 0-4-4m4 4-4 4" /></svg>
+              </button>
+              <button class="icon-button" id="resetButton" type="button" aria-label="Reset programme" title="Reset programme">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v6h6" /></svg>
+              </button>
+            </div>
+          </header>
+
+          <section class="content-panel" id="programmePanel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow" id="programmeSplitName">Upper / Lower</p>
+                <h2>Sessions</h2>
+              </div>
+              <span class="status-pill" id="programmeStatus">Not started</span>
+            </div>
+            <p class="flash-note hidden" id="programmeFlash" role="status"></p>
+            <div class="day-list" id="dayList"></div>
+            <div class="empty-note hidden" id="splitPlaceholder">
+              <p><strong>This split is not built yet.</strong></p>
+              <p>Upper / Lower is the split with a full session builder behind it. The exercise pools and the recommendation engine are shared, so the other two slot in on the same foundation.</p>
+              <button class="ghost-button" id="switchToUpperLower" type="button">Switch to Upper / Lower</button>
+            </div>
+            <div class="panel-actions" id="programmeActions">
+              <p class="actions-note" id="programmeActionsNote"></p>
+              <button class="primary-button" id="reviewButton" type="button">Review &amp; save programme</button>
+            </div>
+          </section>
+        </section>
+
+        <!-- 4. SESSION BUILDER -->
+        <section class="screen dashboard-screen" id="builderScreen" aria-labelledby="builderTitle">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow" id="builderEyebrow">Day 1</p>
+              <h1 id="builderTitle">Upper</h1>
+              <p class="thanks-message" id="builderSummary"></p>
+            </div>
+            <button class="icon-button" id="builderBackButton" type="button" aria-label="Back to programme" title="Back to programme">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
+            </button>
+          </header>
+
+          <section class="builder-grid">
+            <div class="content-panel builder-panel">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Session</p>
+                  <h2 id="builderCount">0 of 6 exercises</h2>
+                </div>
+                <span class="status-pill" id="sessionPill">Empty</span>
+              </div>
+
+              <ol class="session-rows" id="sessionRows"></ol>
+
+              <button class="add-row" id="addRow" type="button">
+                <span class="add-row-plus" aria-hidden="true">+</span>
+                <span class="add-row-label" id="addRowLabel">Add exercise</span>
+                <span class="add-row-hint" id="addRowHint"></span>
+              </button>
+
+              <p class="builder-done hidden" id="builderDone">Session complete.</p>
+
+              <div class="builder-actions">
+                <p class="actions-note" id="builderSaveNote"></p>
+                <button class="primary-button" id="saveSessionButton" type="button">Save session</button>
+              </div>
+            </div>
+
+            <div class="panel metric-panel">
+              <p class="eyebrow">This session</p>
+              <dl>
+                <div>
+                  <dt>Muscle groups</dt>
+                  <dd class="dd-list" id="metricFocus">&mdash;</dd>
+                </div>
+                <div>
+                  <dt>Session size</dt>
+                  <dd id="metricTarget">6 exercises</dd>
+                </div>
+                <div>
+                  <dt>Still to train</dt>
+                  <dd class="dd-list" id="metricRequired">&mdash;</dd>
+                </div>
+              </dl>
+              <p class="metric-note">Follow the recommendation each time and the session comes out evenly distributed across the muscle groups it targets.</p>
+            </div>
+          </section>
+        </section>
+
+        <!-- 5. WEEKLY PROGRAMME SUMMARY -->
+        <section class="screen dashboard-screen" id="summaryScreen" aria-labelledby="summaryTitle">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow" id="summaryEyebrow">Weekly programme</p>
+              <h1 id="summaryTitle">Your week</h1>
+              <p class="thanks-message" id="summarySummary"></p>
+            </div>
+            <button class="icon-button" id="summaryBackButton" type="button" aria-label="Back to sessions" title="Back to sessions">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
+            </button>
+          </header>
+
+          <section class="content-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow" id="summarySplitName">Upper / Lower</p>
+                <h2>Every session, start to finish</h2>
+              </div>
+              <span class="status-pill" id="summaryStatus">Unsaved</span>
+            </div>
+            <p class="flash-note hidden" id="summaryFlash" role="status"></p>
+
+            <div class="summary-week" id="summaryWeek"></div>
+
+            <div class="panel-actions">
+              <p class="actions-note" id="summarySavedNote"></p>
+              <button class="ghost-button" id="summaryEditButton" type="button">Edit sessions</button>
+              <button class="primary-button" id="saveProgrammeButton" type="button">Save weekly programme</button>
+            </div>
+          </section>
+        </section>
+      </main>
+
+      <!-- EXERCISE PICKER -->
+      <div class="modal-overlay hidden" id="pickerOverlay">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow" id="pickerEyebrow">Next up</p>
+              <h3 id="pickerTitle">Choose exercise</h3>
+            </div>
+            <button class="icon-button" id="pickerClose" type="button" aria-label="Close picker">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+          <p class="picker-reason" id="pickerReason"></p>
+          <div class="picker-groups" id="pickerGroups"></div>
+        </div>
+      </div>
+</div>
+
+
+<!-- ===================== DISCIPLINE LINK =====================
+     One control, shown in both disciplines. The inactive side is always a
+     single tap away, so switching never routes back through the landing. -->
+<nav class="discipline-nav" aria-label="Discipline">
+  <button type="button" class="dn-home" data-goto="landing" aria-label="Discipline chooser" title="Chooser">
+    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <rect x="1" y="13" width="4" height="6" rx="1" fill="currentColor"/>
+      <rect x="27" y="13" width="4" height="6" rx="1" fill="currentColor"/>
+      <rect x="5" y="10" width="3.5" height="12" rx="1" fill="currentColor"/>
+      <rect x="23.5" y="10" width="3.5" height="12" rx="1" fill="currentColor"/>
+      <rect x="8.5" y="14.5" width="15" height="3" fill="currentColor"/>
+    </svg>
+  </button>
+  <div class="dn-seg" role="group" aria-label="Switch discipline">
+    <button type="button" class="dn-opt" data-goto="powerlifting" data-for="powerlifting">
+      <span class="dn-dot" aria-hidden="true"></span>Powerlifting
+    </button>
+    <button type="button" class="dn-opt" data-goto="bodybuilding" data-for="bodybuilding">
+      <span class="dn-dot" aria-hidden="true"></span>Bodybuilding
+    </button>
+  </div>
+  <button type="button" class="dn-account" data-auth-open data-auth-label-short aria-label="Sign in" title="Sign in">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M5 20a7 7 0 0 1 14 0"/>
+    </svg>
+    <span class="dn-account-text">Sign in</span>
+  </button>
+</nav>
+
+
+<!-- ===================== ACCOUNT =====================
+     Shell-level: one account covers both disciplines, so the modal lives
+     outside either view and is reachable from both. -->
+<div class="auth-overlay hidden" id="authOverlay">
+  <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <div class="auth-head">
+      <div>
+        <p class="auth-kick">Your account</p>
+        <h3 id="authModalTitle">Sign in</h3>
+      </div>
+      <button type="button" class="auth-close" id="authModalClose" aria-label="Close">&times;</button>
+    </div>
+
+    <p class="auth-note">One account covers powerlifting and bodybuilding. Your blocks and splits follow you to any device.</p>
+
+    <div class="auth-tabs" id="authTabs" role="group" aria-label="Sign in or create an account">
+      <button type="button" class="auth-tab is-on" id="authTabSignin" data-mode="signin">Sign in</button>
+      <button type="button" class="auth-tab" id="authTabSignup" data-mode="signup">Create account</button>
+    </div>
+
+    <form id="authForm">
+      <div class="auth-field">
+        <label for="authEmail">Email</label>
+        <input id="authEmail" type="email" required placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="auth-field">
+        <label for="authPassword">Password</label>
+        <input id="authPassword" type="password" required minlength="6" placeholder="At least 6 characters" autocomplete="current-password" />
+      </div>
+      <p class="auth-error" id="authError" role="alert"></p>
+      <button class="auth-submit" type="submit" id="authSubmit">Sign in</button>
+    </form>
+
+    <div class="auth-signed hidden" id="authSignedIn">
+      <p class="auth-signed-as">Signed in as <strong id="authWho">—</strong></p>
+      <p class="auth-note">Signing out ends the session on this device. Your saved work stays here.</p>
+      <button class="auth-signout" type="button" id="authSignOut">Sign out</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shell.js"></script>
+<script src="powerlifting.js"></script>
+<script src="bodybuilding.js"></script>
+</body>
+</html>
